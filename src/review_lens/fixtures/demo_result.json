@@ -1,0 +1,50 @@
+{
+  "files_reviewed": ["app/users.py"],
+  "lenses": ["correctness", "security", "performance", "tests"],
+  "findings": [
+    {
+      "file": "app/users.py",
+      "line": 5,
+      "lens": "security",
+      "severity": "blocker",
+      "title": "SQL injection: username interpolated into the query string",
+      "detail": "get_user() builds the SQL with an f-string, so a username like `' OR '1'='1` (or `'; DROP TABLE users;--`) is executed as SQL. This is OWASP A03 (Injection) and is directly reachable from user input.",
+      "suggestion": "Use a parameterized query: db.execute(\"SELECT id, email FROM users WHERE username = ?\", (username,)).",
+      "confidence": 0.98,
+      "verified": true
+    },
+    {
+      "file": "app/users.py",
+      "line": 12,
+      "lens": "security",
+      "severity": "high",
+      "title": "Privilege escalation: admin derived from email domain",
+      "detail": "is_admin() grants admin to anyone whose stored email ends in @admin.example.com. If users control their email at signup, they can self-assign admin. Authorization must not be inferred from user-supplied data.",
+      "suggestion": "Check an explicit role/flag on the user record (e.g. user['is_admin']) set by a trusted process, not the email domain.",
+      "confidence": 0.9,
+      "verified": true
+    },
+    {
+      "file": "app/users.py",
+      "line": 7,
+      "lens": "correctness",
+      "severity": "high",
+      "title": "Unhandled missing row raises TypeError",
+      "detail": "When the username doesn't exist, cur.fetchone() returns None, so row[0] raises `TypeError: 'NoneType' object is not subscriptable` instead of a clean not-found result.",
+      "suggestion": "Guard the None case: `if row is None: raise UserNotFound(username)` (or return None) before indexing.",
+      "confidence": 0.95,
+      "verified": true
+    },
+    {
+      "file": "app/users.py",
+      "line": 10,
+      "lens": "tests",
+      "severity": "medium",
+      "title": "No test covers the not-found or admin paths",
+      "detail": "Two new branches ship untested: get_user() on a missing username, and is_admin() true/false. A regression in either would pass CI silently.",
+      "suggestion": "Add tests: get_user() raises/returns on unknown user; is_admin() is False for a normal email and only True via an explicit role.",
+      "confidence": 0.8,
+      "verified": true
+    }
+  ]
+}

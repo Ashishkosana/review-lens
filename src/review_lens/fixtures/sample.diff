@@ -1,0 +1,21 @@
+diff --git a/app/users.py b/app/users.py
+index 1c2d3e4..5f6a7b8 100644
+--- a/app/users.py
++++ b/app/users.py
+@@ -1,4 +1,15 @@
+ import sqlite3
+
+
++def get_user(db: sqlite3.Connection, username: str) -> dict:
++    cur = db.execute(f"SELECT id, email FROM users WHERE username = '{username}'")
++    row = cur.fetchone()
++    return {"id": row[0], "email": row[1]}
++
++
++def is_admin(db: sqlite3.Connection, username: str) -> bool:
++    user = get_user(db, username)
++    return user["email"].endswith("@admin.example.com")
++
++
+ def healthcheck() -> str:
+     return "ok"
