@@ -1,0 +1,11 @@
+{
+  "description": "`end - 1` drops the last item of every page — an off-by-one slice bug.",
+  "labels": [
+    {
+      "file": "util/pagination.py",
+      "line": 8,
+      "lens": "correctness",
+      "severity": "high"
+    }
+  ]
+}

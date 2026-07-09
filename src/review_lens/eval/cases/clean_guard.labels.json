@@ -1,0 +1,4 @@
+{
+  "description": "The added lines parameterize the query and guard the missing-row case correctly. No finding expected — a false positive here counts against precision.",
+  "labels": []
+}

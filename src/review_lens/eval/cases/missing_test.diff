@@ -1,0 +1,17 @@
+diff --git a/billing/discount.py b/billing/discount.py
+index 7777777..8888888 100644
+--- a/billing/discount.py
++++ b/billing/discount.py
+@@ -1,2 +1,12 @@
+ from decimal import Decimal
+
++
++def apply_discount(price: Decimal, code: str) -> Decimal:
++    if code == "HALF":
++        return price / 2
++    if code == "TENOFF":
++        return price - Decimal("10")
++    if price > Decimal("100"):
++        return price * Decimal("0.9")
++    return price
++

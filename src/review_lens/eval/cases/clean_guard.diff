@@ -1,0 +1,16 @@
+diff --git a/api/lookup.py b/api/lookup.py
+index bbbbbbb..ccccccc 100644
+--- a/api/lookup.py
++++ b/api/lookup.py
+@@ -1,6 +1,9 @@
+ import sqlite3
+
+
+ def get_email(db: sqlite3.Connection, user_id: int) -> str | None:
+-    cur = db.execute("SELECT email FROM users WHERE id = %s" % user_id)
+-    return cur.fetchone()[0]
++    cur = db.execute("SELECT email FROM users WHERE id = ?", (user_id,))
++    row = cur.fetchone()
++    if row is None:
++        return None
++    return row[0]

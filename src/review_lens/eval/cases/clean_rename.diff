@@ -1,0 +1,11 @@
+diff --git a/util/text.py b/util/text.py
+index 9999999..aaaaaaa 100644
+--- a/util/text.py
++++ b/util/text.py
+@@ -1,4 +1,4 @@
+-def shout(s):
+-    return s.upper() + "!"
++def shout(text: str) -> str:
++    return text.upper() + "!"
+
+

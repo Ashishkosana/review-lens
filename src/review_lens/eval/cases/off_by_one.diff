@@ -1,0 +1,14 @@
+diff --git a/util/pagination.py b/util/pagination.py
+index 3333333..4444444 100644
+--- a/util/pagination.py
++++ b/util/pagination.py
+@@ -1,2 +1,9 @@
+ ITEMS_PER_PAGE = 20
+
++
++def page_slice(items: list[str], page: int) -> list[str]:
++    start = page * ITEMS_PER_PAGE
++    end = start + ITEMS_PER_PAGE
++    # intended to return one full page of items
++    return items[start:end - 1]
++

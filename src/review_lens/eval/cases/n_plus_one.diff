@@ -1,0 +1,16 @@
+diff --git a/api/reporting.py b/api/reporting.py
+index 5555555..6666666 100644
+--- a/api/reporting.py
++++ b/api/reporting.py
+@@ -1,4 +1,11 @@
+ from db import session
+ from models import Order
+
+
++def total_spend(user_ids: list[int]) -> dict[int, float]:
++    totals: dict[int, float] = {}
++    for uid in user_ids:
++        orders = session.query(Order).filter(Order.user_id == uid).all()
++        totals[uid] = sum(o.amount for o in orders)
++    return totals
++

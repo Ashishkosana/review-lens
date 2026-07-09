@@ -75,7 +75,7 @@ Flags: `--format {terminal,markdown,github}` · `--lenses` · `--min-severity` �
         ranked, de-duped, verified findings → terminal / markdown / GitHub review
 ```
 
-The verify pass is the whole point: it trades a little recall for a lot of **precision**, which is the difference between a reviewer people keep and one they mute. Line references the model invents are also nulled out if they don't map to a line the diff actually changed.
+The verify pass is the whole point: it trades a little recall for a lot of **precision**, which is the difference between a reviewer people keep and one they mute. That claim isn't a vibe — there's an [evaluation harness](#evaluation) that measures it. Line references the model invents are also nulled out if they don't map to a line the diff actually changed.
 
 ## Use it as a GitHub Action
 
@@ -118,11 +118,50 @@ src/review_lens/
   render.py     # terminal / markdown / GitHub renderers (pure)
   config.py     # env-driven settings
   cli.py        # entry point
+  eval/         # labeled dataset + precision/recall/F1 harness (python -m review_lens.eval)
 ```
 
 > **Note:** `--fail-on` is a convenience gate, not a trust boundary. An LLM
 > reading attacker-authored diff text can be talked out of a finding (prompt
 > injection), so keep a human in the loop — never merge solely on a green check.
+
+## Evaluation
+
+The headline claim — *the verify pass trades recall for precision* — is measured,
+not asserted. There's a small **labeled dataset** under `src/review_lens/eval/cases/`:
+each case is a unified diff plus a ground-truth labels file listing the findings it
+*should* surface (`file`, `line`, `lens`, `severity`).
+
+- **Seeded-bug diffs** — a SQL injection, an off-by-one slice, an N+1 query, and a
+  branch-heavy function shipped without a test — one per lens.
+- **Clean diffs** — a pure rename/retype and a correct parameterize-and-guard fix —
+  carry *no* labels, so any finding on them is a false positive. This is how the
+  harness measures precision, not just recall.
+
+**Metrics** (`review_lens.eval.metrics`, pure and unit-tested) score predicted
+findings against labels with **precision / recall / F1**. A prediction is a true
+positive when it matches a label by `file` + `lens` and lands within a few lines of
+the labelled line; matching is one-to-one, so duplicate comments on the same defect
+count as false positives rather than inflating recall. Corpus metrics sum the
+confusion-matrix counts across all diffs (so the clean diffs genuinely pull
+precision down).
+
+Run it:
+
+```bash
+# No key: prints the dataset and how to score it (exit 0).
+python -m review_lens.eval
+
+# With a key: runs review() over every diff twice — WITHOUT and WITH the verify
+# pass — and prints a precision/recall/F1 table showing the precision lift.
+export ANTHROPIC_API_KEY=sk-ant-...
+python -m review_lens.eval
+```
+
+Both runs use identical severity/confidence gates, so the verify pass is the only
+variable between them. **Every number is computed live from the model over the
+dataset — nothing is hardcoded.** Expect the *with-verify* row to show higher
+precision (fewer false positives on the clean diffs) at some cost to recall.
 
 ## Roadmap
 - Inline GitHub review comments (not just a summary comment)

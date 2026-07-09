@@ -1,0 +1,11 @@
+{
+  "description": "One DB query per user inside the loop — a classic N+1; should be a single grouped query.",
+  "labels": [
+    {
+      "file": "api/reporting.py",
+      "line": 8,
+      "lens": "performance",
+      "severity": "high"
+    }
+  ]
+}

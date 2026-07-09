@@ -1,0 +1,11 @@
+{
+  "description": "String-concatenated SQL in find_orders lets `customer` inject SQL (OWASP A03).",
+  "labels": [
+    {
+      "file": "api/orders.py",
+      "line": 5,
+      "lens": "security",
+      "severity": "blocker"
+    }
+  ]
+}

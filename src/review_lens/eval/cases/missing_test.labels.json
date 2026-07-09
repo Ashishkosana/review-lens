@@ -1,0 +1,11 @@
+{
+  "description": "New branch-heavy apply_discount ships with no test covering its code/threshold branches.",
+  "labels": [
+    {
+      "file": "billing/discount.py",
+      "line": 4,
+      "lens": "tests",
+      "severity": "medium"
+    }
+  ]
+}
