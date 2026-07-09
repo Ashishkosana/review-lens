@@ -19,9 +19,7 @@ def test_parses_path_and_added_line_numbers() -> None:
 
 def test_added_lines_exclude_context_and_headers() -> None:
     fd = parse_diff(SAMPLE)[0]
-    # The unchanged `import sqlite3` (line 1) must not be reported as added.
     assert 1 not in fd.added_lines
-    # No header marker text leaks into added content.
     assert all(not text.startswith("+") for text in fd.added_lines.values())
 
 
@@ -42,3 +40,36 @@ def test_multi_file_diff() -> None:
     assert [f.path for f in parsed] == ["x.py", "y.py"]
     assert parsed[0].added_lines == {1: "x = 1"}
     assert parsed[1].added_lines == {1: "y = 2"}
+
+
+def test_deleted_file_recovers_real_path() -> None:
+    text = (
+        "diff --git a/gone.py b/gone.py\ndeleted file mode 100644\n"
+        "--- a/gone.py\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-x = 1\n-y = 2\n"
+    )
+    assert changed_files(text) == ["gone.py"]
+
+
+def test_pure_rename_registers_new_path() -> None:
+    text = (
+        "diff --git a/old.py b/new.py\nsimilarity index 100%\n"
+        "rename from old.py\nrename to new.py\n"
+    )
+    assert changed_files(text) == ["new.py"]
+
+
+def test_form_feed_in_content_does_not_corrupt_line_numbers() -> None:
+    # \x0c (form feed) is a boundary for str.splitlines() but not for real diffs.
+    text = (
+        "diff --git a/f.py b/f.py\n--- a/f.py\n+++ b/f.py\n"
+        "@@ -0,0 +1,2 @@\n+a = '\x0cx'\n+b = 2\n"
+    )
+    fd = parse_diff(text)[0]
+    assert fd.added_lines == {1: "a = '\x0cx'", 2: "b = 2"}
+
+
+def test_crlf_diff() -> None:
+    text = "diff --git a/f.py b/f.py\r\n--- a/f.py\r\n+++ b/f.py\r\n@@ -0,0 +1 @@\r\n+x = 1\r\n"
+    fd = parse_diff(text)[0]
+    assert fd.path == "f.py"
+    assert fd.added_lines == {1: "x = 1"}

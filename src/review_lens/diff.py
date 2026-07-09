@@ -12,6 +12,11 @@ import re
 from dataclasses import dataclass, field
 
 _HUNK_HEADER = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+_DIFF_GIT = re.compile(r"^diff --git a/(.+?) b/(.+)$")
+
+
+def _strip_prefix(path: str) -> str:
+    return path[2:] if path.startswith(("a/", "b/")) else path
 
 
 @dataclass
@@ -22,11 +27,12 @@ class FileDiff:
     added_lines: dict[int, str] = field(default_factory=dict)
 
 
-def parse_diff(text: str) -> list[FileDiff]:
+def parse_diff(text: str) -> list[FileDiff]:  # noqa: PLR0912, PLR0915 - line-by-line state machine
     files: list[FileDiff] = []
     current: FileDiff | None = None
     patch_lines: list[str] = []
     new_ln = 0
+    old_path: str | None = None  # from "diff --git a/<x>" or "--- a/<x>"
 
     def flush() -> None:
         nonlocal current, patch_lines
@@ -36,31 +42,51 @@ def parse_diff(text: str) -> list[FileDiff]:
         current = None
         patch_lines = []
 
-    for line in text.splitlines():
-        if line.startswith("diff --git"):
+    # Split on real newlines only. str.splitlines() also breaks on form-feed,
+    # vertical tab, NEL, LS/PS — which would corrupt line numbers if any of those
+    # appear inside a changed line's content.
+    for line in re.split(r"\r?\n", text):
+        git_header = _DIFF_GIT.match(line)
+        if git_header:
+            # Start the file here so a pure rename (no hunk) still registers, and
+            # so deletions can recover their real path from the "a/" side.
             flush()
-            continue
-        if line.startswith("+++ "):
-            # Start of a new file's hunks. Path is "b/<path>" (or /dev/null on delete).
-            flush()
-            path = line[4:].strip()
-            path = path[2:] if path.startswith(("a/", "b/")) else path
-            current = FileDiff(path=path)
+            old_path = git_header.group(1)
+            current = FileDiff(path=git_header.group(2))
             patch_lines = [line]
             new_ln = 0
             continue
+
         if current is None:
-            # Pre-amble before the first "+++" (e.g. "--- a/..", "index ..").
+            # A plain unified diff with no "diff --git" header: start on "+++".
+            if line.startswith("+++ "):
+                path = _strip_prefix(line[4:].strip())
+                current = FileDiff(path=path if path != "/dev/null" else (old_path or path))
+                patch_lines = [line]
+                new_ln = 0
+            elif line.startswith("--- "):
+                stripped = _strip_prefix(line[4:].strip())
+                old_path = stripped if stripped != "/dev/null" else old_path
             continue
 
         patch_lines.append(line)
 
+        if line.startswith("--- "):
+            stripped = _strip_prefix(line[4:].strip())
+            if stripped != "/dev/null":
+                old_path = stripped
+            continue
+        if line.startswith("+++ "):
+            path = _strip_prefix(line[4:].strip())
+            # On deletion (+++ /dev/null) recover the real path from the old side.
+            current.path = path if path != "/dev/null" else (old_path or current.path)
+            continue
         header = _HUNK_HEADER.match(line)
         if header:
             new_ln = int(header.group(1))
             continue
-        if line.startswith("--- ") or line.startswith("\\ "):
-            # Old-file marker / "No newline at end of file" — never advance.
+        if line.startswith("\\ "):
+            # "No newline at end of file" — never advances.
             continue
         if line.startswith("+"):
             current.added_lines[new_ln] = line[1:]

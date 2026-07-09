@@ -1,10 +1,9 @@
 from importlib.resources import files
 from typing import Any
 
-from tests.fakes import FakeLLM
-
 from review_lens.models import Lens, Severity
 from review_lens.reviewer import review
+from tests.fakes import FakeLLM
 
 DIFF = files("review_lens.fixtures").joinpath("sample.diff").read_text(encoding="utf-8")
 
@@ -52,8 +51,57 @@ def test_verify_can_be_skipped() -> None:
     result = review(DIFF, fake, verify=False)
     assert len(result.findings) == 2
     assert all(not f.verified for f in result.findings)
-    # No call carried the verify prompt.
     assert not any("skeptical staff engineer" in s for s, _ in fake.calls)
+
+
+def test_verify_drops_unconfirmed_findings() -> None:
+    """The headline behavior: a candidate the verify pass omits is dropped."""
+
+    def responder(system: str, _user: str) -> list[dict[str, Any]]:
+        if "skeptical staff engineer" in system:
+            return [SEC]  # verify confirms only the security finding
+        if "lens is SECURITY" in system:
+            return [SEC]
+        if "lens is CORRECTNESS" in system:
+            return [CORR]
+        return []
+
+    result = review(DIFF, FakeLLM(responder))
+    assert [f.title for f in result.findings] == ["SQL injection"]
+
+
+def test_one_failing_lens_is_isolated() -> None:
+    def responder(system: str, _user: str) -> list[dict[str, Any]]:
+        if "skeptical staff engineer" in system:
+            return [CORR]
+        if "lens is SECURITY" in system:
+            raise RuntimeError("lens crashed")
+        if "lens is CORRECTNESS" in system:
+            return [CORR]
+        return []
+
+    result = review(DIFF, FakeLLM(responder))
+    assert [f.title for f in result.findings] == ["Missing None check"]
+
+
+def test_hallucinated_line_is_nulled() -> None:
+    bogus = {**SEC, "line": 999}  # 999 is not a line the diff added
+
+    def responder(system: str, _user: str) -> list[dict[str, Any]]:
+        return [bogus] if "lens is SECURITY" in system else []
+
+    result = review(DIFF, FakeLLM(responder), verify=False, lenses=[Lens.SECURITY])
+    assert result.findings[0].line is None
+
+
+def test_finding_on_file_not_in_diff_is_nulled() -> None:
+    off_file = {**SEC, "file": "not/in/the.diff", "line": 3}
+
+    def responder(system: str, _user: str) -> list[dict[str, Any]]:
+        return [off_file] if "lens is SECURITY" in system else []
+
+    result = review(DIFF, FakeLLM(responder), verify=False, lenses=[Lens.SECURITY])
+    assert result.findings[0].line is None
 
 
 def test_threshold_filters_out_low_confidence() -> None:

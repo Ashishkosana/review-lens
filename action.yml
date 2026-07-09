@@ -19,19 +19,23 @@ runs:
     - uses: actions/setup-python@v5
       with:
         python-version: "3.11"
+    # Install the checked-out action code, so `@main`/`@vX` pins the code that
+    # actually runs (and doesn't depend on a PyPI release existing).
     - shell: bash
-      run: pip install review-lens
+      run: pip install "$GITHUB_ACTION_PATH"
     - shell: bash
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         GH_TOKEN: ${{ github.token }}
         BASE: ${{ github.base_ref }}
         PR: ${{ github.event.pull_request.number }}
+        FAIL_ON: ${{ inputs.fail-on }}
       run: |
         set -euo pipefail
-        git fetch origin "$BASE" --depth=1
+        # Full fetch of the base so the three-dot merge-base resolves.
+        git fetch origin "$BASE"
         rc=0
         git diff "origin/$BASE...HEAD" \
-          | review-lens - --format markdown --fail-on "${{ inputs.fail-on }}" > review.md || rc=$?
+          | review-lens - --format markdown --fail-on "$FAIL_ON" > review.md || rc=$?
         gh pr comment "$PR" --body-file review.md || true
         exit "$rc"

@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from review_lens.models import Finding, ReviewResult, Severity
+
+
+def _no_mentions(text: str) -> str:
+    """Defang @mentions/@team pings in model-authored text posted to GitHub."""
+    return re.sub(r"@(?=\w)", "@\u200b", text)
+
 
 _LABEL: dict[Severity, str] = {
     Severity.BLOCKER: "BLOCKER",
@@ -64,11 +71,11 @@ def render_markdown(result: ReviewResult) -> str:
     lines = [f"### review-lens\n\n**{_summary(result)}**\n"]
     for f in result.findings:
         check = " · ✓ verified" if f.verified else ""
+        suggestion = f"\n  _Suggestion:_ {_no_mentions(f.suggestion)}" if f.suggestion else ""
         lines.append(
-            f"- **[{_LABEL[f.severity]}] {f.title}** — `{_loc(f)}` "
+            f"- **[{_LABEL[f.severity]}] {_no_mentions(f.title)}** — `{_loc(f)}` "
             f"_({f.lens.value} · {int(f.confidence * 100)}%{check})_\n"
-            f"  {f.detail}"
-            + (f"\n  _Suggestion:_ {f.suggestion}" if f.suggestion else "")
+            f"  {_no_mentions(f.detail)}" + suggestion
         )
     return "\n".join(lines)
 
@@ -79,9 +86,12 @@ def render_github_json(result: ReviewResult) -> dict[str, Any]:
     for f in result.findings:
         if f.line is None:
             continue
-        body = f"**[{_LABEL[f.severity]}] {f.title}** _({f.lens.value})_\n\n{f.detail}"
+        body = (
+            f"**[{_LABEL[f.severity]}] {_no_mentions(f.title)}** "
+            f"_({f.lens.value})_\n\n{_no_mentions(f.detail)}"
+        )
         if f.suggestion:
-            body += f"\n\n_Suggestion:_ {f.suggestion}"
+            body += f"\n\n_Suggestion:_ {_no_mentions(f.suggestion)}"
         comments.append({"path": f.file, "line": f.line, "body": body})
     event = "REQUEST_CHANGES" if result.has_blockers else "COMMENT"
     body = (

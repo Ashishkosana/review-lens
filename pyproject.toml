@@ -47,5 +47,5 @@ plugins = ["pydantic.mypy"]
 files = ["src/review_lens"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]

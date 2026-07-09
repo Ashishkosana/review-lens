@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-# JSON Schema for a single finding — reused as the Anthropic tool input schema.
-FINDING_SCHEMA: dict[str, Any] = {
+# Input schema for the `report_findings` tool: an object wrapping a findings[] array.
+TOOL_INPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "findings": {
@@ -41,7 +41,7 @@ FINDING_SCHEMA: dict[str, Any] = {
 _TOOL = {
     "name": "report_findings",
     "description": "Report code-review findings found in the diff.",
-    "input_schema": FINDING_SCHEMA,
+    "input_schema": TOOL_INPUT_SCHEMA,
 }
 
 

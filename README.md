@@ -15,9 +15,12 @@ It suggests. **You decide.** Nothing is ever auto-applied.
 ## Try it in 30 seconds (no API key)
 
 ```bash
-pipx install review-lens      # or: pip install review-lens
+git clone https://github.com/Ashishkosana/review-lens && cd review-lens
+pip install -e .
 review-lens --demo
 ```
+
+> PyPI release (`pipx install review-lens`) is on the roadmap.
 
 ```
 review-lens: 4 findings across 1 file (1 blocker, 2 high, 1 medium)
@@ -105,14 +108,21 @@ It posts the review as a PR comment and (optionally) fails the check on severe f
 
 ```
 src/review_lens/
+  models.py     # typed domain models (pure)
   diff.py       # unified-diff → per-file added-line maps (pure)
   lenses.py     # the four focused reviewer prompts
   llm.py        # LLMClient protocol + Anthropic adapter
+  coerce.py     # tolerant LLM-output → Finding coercion
   reviewer.py   # orchestration: fan out → verify → filter
   verify.py     # adversarial self-verification
   render.py     # terminal / markdown / GitHub renderers (pure)
+  config.py     # env-driven settings
   cli.py        # entry point
 ```
+
+> **Note:** `--fail-on` is a convenience gate, not a trust boundary. An LLM
+> reading attacker-authored diff text can be talked out of a finding (prompt
+> injection), so keep a human in the loop — never merge solely on a green check.
 
 ## Roadmap
 - Inline GitHub review comments (not just a summary comment)

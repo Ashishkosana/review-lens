@@ -32,7 +32,9 @@ def _fixture(name: str) -> str:
 def _git_diff(args: list[str]) -> str:
     try:
         proc = subprocess.run(
-            ["git", "diff", "--no-color", *args],
+            # --end-of-options: everything after is a revision/pathspec, never an
+            # option — so a crafted source ("--output=..") can't inject git flags.
+            ["git", "diff", "--no-color", "--end-of-options", *args],
             capture_output=True,
             text=True,
             check=True,
@@ -50,6 +52,8 @@ def _acquire_diff(source: str | None) -> str:
     if source and Path(source).is_file():
         return Path(source).read_text(encoding="utf-8")
     if source:
+        if source.startswith("-"):
+            sys.exit(f"review-lens: {source!r} is not a file or a valid git ref.")
         return _git_diff([source])
     if not sys.stdin.isatty():
         return sys.stdin.read()
@@ -81,28 +85,44 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _run(args: argparse.Namespace) -> ReviewResult:
-    if args.demo:
-        demo = ReviewResult.model_validate_json(_fixture("demo_result.json"))
-        return ReviewResult(
-            findings=sort_findings(demo.findings),
-            files_reviewed=demo.files_reviewed,
-            lenses=demo.lenses,
-        )
-
+def _settings_from(args: argparse.Namespace) -> Settings:
     settings = Settings()
     if args.model:
         settings.model = args.model
     if args.no_verify:
         settings.verify = False
     if args.lenses:
-        settings.lenses = [Lens(name.strip()) for name in args.lenses.split(",") if name.strip()]
+        try:
+            chosen = [Lens(name.strip()) for name in args.lenses.split(",") if name.strip()]
+        except ValueError:
+            valid = ", ".join(lens.value for lens in Lens)
+            sys.exit(f"review-lens: invalid --lenses {args.lenses!r}; choose from {valid}")
+        if not chosen:
+            sys.exit("review-lens: --lenses selected no lenses")
+        settings.lenses = chosen
     if args.min_severity:
         settings.min_severity = Severity(args.min_severity)
     if args.min_confidence is not None:
         settings.min_confidence = args.min_confidence
+    return settings
 
-    diff_text = _acquire_diff(args.source if args.source != "--demo" else None)
+
+def _run(args: argparse.Namespace) -> ReviewResult:
+    settings = _settings_from(args)
+
+    if args.demo:
+        demo = ReviewResult.model_validate_json(_fixture("demo_result.json"))
+        subset = [f for f in demo.findings if f.lens in settings.lenses]
+        result = ReviewResult(
+            findings=sort_findings(subset),
+            files_reviewed=demo.files_reviewed,
+            lenses=settings.lenses,
+        )
+        return result.filtered(
+            min_severity=settings.min_severity, min_confidence=settings.min_confidence
+        )
+
+    diff_text = _acquire_diff(args.source)
     if not diff_text.strip():
         return ReviewResult(findings=[], files_reviewed=[], lenses=settings.lenses)
 
