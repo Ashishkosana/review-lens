@@ -50,7 +50,7 @@ review-lens: 4 findings across 1 file (1 blocker, 2 high, 1 medium)
 export ANTHROPIC_API_KEY=sk-ant-...
 
 git diff main | review-lens -            # review a branch against main
-review-lens HEAD~1                        # review the last commit
+review-lens HEAD~1                        # review everything since the previous commit (incl. uncommitted work)
 review-lens                               # review your working tree vs HEAD
 review-lens changes.diff                  # review a saved diff
 
@@ -58,7 +58,9 @@ review-lens HEAD~1 --format markdown      # PR-ready markdown
 review-lens HEAD~1 --lenses security,correctness --fail-on high
 ```
 
-Flags: `--format {terminal,markdown,github}` · `--lenses` · `--min-severity` · `--min-confidence` · `--no-verify` · `--fail-on <severity>` (CI gate) · `--model`.
+Flags: `--format {terminal,markdown,github}` · `--lenses` · `--min-severity` · `--min-confidence` · `--no-verify` · `--fail-on <severity>` (CI gate) · `--model` · `--no-color`.
+
+`--min-severity` defaults to `low`, so nit-level findings are hidden unless you pass `--min-severity nit`.
 
 ## How it works
 
