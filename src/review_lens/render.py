@@ -73,7 +73,7 @@ def render_markdown(result: ReviewResult) -> str:
         check = " · ✓ verified" if f.verified else ""
         suggestion = f"\n  _Suggestion:_ {_no_mentions(f.suggestion)}" if f.suggestion else ""
         lines.append(
-            f"- **[{_LABEL[f.severity]}] {_no_mentions(f.title)}** — `{_loc(f)}` "
+            f"- **[{_LABEL[f.severity]}] {_no_mentions(f.title)}** — `{_no_mentions(_loc(f))}` "
             f"_({f.lens.value} · {int(f.confidence * 100)}%{check})_\n"
             f"  {_no_mentions(f.detail)}" + suggestion
         )
@@ -83,19 +83,27 @@ def render_markdown(result: ReviewResult) -> str:
 def render_github_json(result: ReviewResult) -> dict[str, Any]:
     """A payload shaped for the GitHub 'create a review' API (line comments)."""
     comments: list[dict[str, Any]] = []
+    orphans: list[Finding] = []  # findings with no diff line can't be inline comments
     for f in result.findings:
         if f.line is None:
+            orphans.append(f)
             continue
-        body = (
+        comment = (
             f"**[{_LABEL[f.severity]}] {_no_mentions(f.title)}** "
             f"_({f.lens.value})_\n\n{_no_mentions(f.detail)}"
         )
         if f.suggestion:
-            body += f"\n\n_Suggestion:_ {_no_mentions(f.suggestion)}"
-        comments.append({"path": f.file, "line": f.line, "body": body})
+            comment += f"\n\n_Suggestion:_ {_no_mentions(f.suggestion)}"
+        comments.append({"path": _no_mentions(f.file), "line": f.line, "body": comment})
     event = "REQUEST_CHANGES" if result.has_blockers else "COMMENT"
-    body = (
-        f"🔎 **review-lens** — {_summary(result)}\n\n"
-        "_Drafts for your review; nothing is auto-applied._"
-    )
+    body = f"🔎 **review-lens** — {_summary(result)}\n\n"
+    # A line-less finding (e.g. a blocker whose hallucinated line was nulled) would
+    # otherwise flip the review to REQUEST_CHANGES with no stated reason — surface it.
+    if orphans:
+        body += "**Findings not tied to a diff line:**\n" + "\n".join(
+            f"- **[{_LABEL[f.severity]}] {_no_mentions(f.title)}** "
+            f"_({f.lens.value})_ — {_no_mentions(f.detail)}"
+            for f in orphans
+        ) + "\n\n"
+    body += "_Drafts for your review; nothing is auto-applied._"
     return {"event": event, "body": body, "comments": comments}

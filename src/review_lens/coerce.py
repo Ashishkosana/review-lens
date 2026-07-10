@@ -47,7 +47,7 @@ def coerce_findings(
         suggestion = item.get("suggestion")
         out.append(
             Finding(
-                file=str(item.get("file", "")).strip() or "(unknown)",
+                file=str(item.get("file", "")).strip().replace("`", "") or "(unknown)",
                 line=_as_int(item.get("line")),
                 lens=lens,
                 severity=_as_severity(item.get("severity")),
