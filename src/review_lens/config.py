@@ -21,5 +21,7 @@ class Settings(BaseSettings):
     max_tokens: int = 4096
     lenses: list[Lens] = Field(default_factory=lambda: list(Lens))
     verify: bool = True
+    # Precision-first floor: nit-level findings are hidden unless you pass
+    # --min-severity nit (at_least(LOW) is False for NIT).
     min_severity: Severity = Severity.LOW
     min_confidence: float = 0.5

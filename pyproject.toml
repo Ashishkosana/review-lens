@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [{ name = "Ashish Kosana", email = "ashishkosana@gmail.com" }]
-keywords = ["code-review", "llm", "agent", "claude", "ci", "static-analysis"]
+keywords = ["code-review", "llm", "agent", "pull-request", "ci", "static-analysis"]
 dependencies = [
   "anthropic>=0.40",
   "pydantic>=2.7",

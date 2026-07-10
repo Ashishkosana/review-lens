@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from review_lens.eval.metrics import Metrics
 
 
-def _pct(value: float) -> str:
+def _ratio(value: float) -> str:
     return f"{value:.2f}"
 
 
@@ -22,8 +22,8 @@ def format_per_case(rows: Sequence[tuple[str, Metrics]]) -> str:
     lines = []
     for name, m in rows:
         lines.append(
-            f"  {name:<{width}}  P={_pct(m.precision)} R={_pct(m.recall)} "
-            f"F1={_pct(m.f1)}  (tp={m.tp} fp={m.fp} fn={m.fn})"
+            f"  {name:<{width}}  P={_ratio(m.precision)} R={_ratio(m.recall)} "
+            f"F1={_ratio(m.f1)}  (tp={m.tp} fp={m.fp} fn={m.fn})"
         )
     return "\n".join(lines)
 
@@ -39,8 +39,8 @@ def format_comparison(without_verify: Metrics, with_verify: Metrics) -> str:
     for name, m in rows:
         counts = f"{m.tp}/{m.fp}/{m.fn}"
         lines.append(
-            f"  {name:<16}{_pct(m.precision):>11}{_pct(m.recall):>9}"
-            f"{_pct(m.f1):>7}   {counts:>10}"
+            f"  {name:<16}{_ratio(m.precision):>11}{_ratio(m.recall):>9}"
+            f"{_ratio(m.f1):>7}   {counts:>10}"
         )
     delta = with_verify.precision - without_verify.precision
     sign = "+" if delta >= 0 else ""
