@@ -57,12 +57,19 @@ def verify_findings(
     )
     survivors = client.run(VERIFY_PROMPT, user_content)
     # The verify schema can't carry the lens, so recover it from the originals —
-    # by (file, line) first (stable even if the model rewords the title), then by
-    # title, and only then fall back to the coerced default.
+    # by exact (file, line, title), then by (file, line) (stable if the model rewords
+    # the title), then by title, and only then fall back to the coerced default.
+    by_exact = {(f.file, f.line, f.title.strip().lower()): f.lens for f in findings}
     by_loc = {(f.file, f.line): f.lens for f in findings}
     by_title = {f.title.strip().lower(): f.lens for f in findings}
     verified: list[Finding] = []
     for f in coerce_findings(survivors, lens=Lens.CORRECTNESS, verified=True):
-        lens = by_loc.get((f.file, f.line)) or by_title.get(f.title.strip().lower()) or f.lens
+        key = f.title.strip().lower()
+        lens = (
+            by_exact.get((f.file, f.line, key))
+            or by_loc.get((f.file, f.line))
+            or by_title.get(key)
+            or f.lens
+        )
         verified.append(f.model_copy(update={"lens": lens}))
     return verified
