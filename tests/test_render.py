@@ -84,3 +84,17 @@ def test_mentions_are_defanged_in_posted_output() -> None:
         assert "@org" not in text
         assert "@everyone" not in text
         assert "\u200b" in text  # a zero-width space was inserted after '@'
+
+
+def test_terminal_colorizes_when_color_true() -> None:
+    out = render_terminal(_result(), color=True)
+    assert "\033[41;97m BLOCKER \033[0m" in out  # severity tag wrapped in ANSI + reset
+    assert "\033[2m" in out  # detail is dimmed
+
+
+def test_github_blocker_without_line_still_states_a_reason() -> None:
+    r = _one(line=None, severity=Severity.BLOCKER, title="latent blocker", detail="why it blocks")
+    payload = render_github_json(r)
+    assert payload["event"] == "REQUEST_CHANGES"
+    assert payload["comments"] == []  # no diff line -> no inline comment
+    assert "latent blocker" in payload["body"]  # ...but the reason is now in the body

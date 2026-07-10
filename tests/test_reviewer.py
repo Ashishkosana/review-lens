@@ -123,3 +123,18 @@ def test_only_requested_lenses_run() -> None:
     lens_calls = [s for s, _ in fake.calls if "Your lens is" in s]
     assert len(lens_calls) == 1
     assert "lens is SECURITY" in lens_calls[0]
+
+
+def test_verify_output_line_is_revalidated() -> None:
+    """The verify model is untrusted too: a bogus line in its output is nulled."""
+
+    def responder(system: str, _user: str) -> list[dict[str, Any]]:
+        if "skeptical staff engineer" in system:
+            return [{**SEC, "line": 999}]  # verify hallucinates a line not in the diff
+        if "lens is SECURITY" in system:
+            return [SEC]
+        return []
+
+    result = review(DIFF, FakeLLM(responder), lenses=[Lens.SECURITY])
+    assert [f.title for f in result.findings] == ["SQL injection"]
+    assert result.findings[0].line is None
