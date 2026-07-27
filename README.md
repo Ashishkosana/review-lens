@@ -77,7 +77,7 @@ Flags: `--format {terminal,markdown,github}` · `--lenses` · `--min-severity` �
         ranked, de-duped, verified findings → terminal / markdown / GitHub review
 ```
 
-The verify pass is the whole point: it trades a little recall for a lot of **precision**, which is the difference between a reviewer people keep and one they mute. That claim isn't a vibe — there's an [evaluation harness](#evaluation) that measures it. Line references the model invents are also nulled out if they don't map to a line the diff actually changed.
+The verify pass is the whole point: it trades a little recall for a lot of **precision**, which is the difference between a reviewer people keep and one they mute. It isn't just a vibe: there's an [evaluation harness](#evaluation) — precision/recall/F1 over a labeled dataset — built to measure exactly this. Run it with an API key to reproduce the lift (numbers aren't hardcoded, so nothing is published here that wasn't computed live). Line references the model invents are also nulled out if they don't map to a line the diff actually changed.
 
 ## Use it as a GitHub Action
 
@@ -129,8 +129,10 @@ src/review_lens/
 
 ## Evaluation
 
-The headline claim — *the verify pass trades recall for precision* — is measured,
-not asserted. There's a small **labeled dataset** under `src/review_lens/eval/cases/`:
+The headline claim — *the verify pass trades recall for precision* — is **measurable,
+not just asserted**: run the harness below with an API key and it scores the claim
+live. (No numbers are baked into this README — you reproduce them.) There's a small
+**labeled dataset** under `src/review_lens/eval/cases/`:
 each case is a unified diff plus a ground-truth labels file listing the findings it
 *should* surface (`file`, `line`, `lens`, `severity`).
 
